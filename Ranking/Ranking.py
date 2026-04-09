@@ -4,18 +4,18 @@ import json
 import Util.util as util
 import threading
 
-class Promocao:
+class Ranking:
     def __init__(self):
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
-        self.lista_promocoes = []
+        self.lista_destaques = []
 
-    def receive_recebida(self):
+    def receive_voto(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
-        self.channel.queue_bind(exchange='Promocoes', queue=queue_name,routing_key="recebida")
+        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="voto")
         print(' [*] Waiting for logs. To exit press CTRL+C')
         def callback(ch, method, properties, body):
             obj = json.loads(body)
@@ -33,24 +33,23 @@ class Promocao:
     def enviar_publicada(self, lista_promocoes):
         dados = { 
             "Data":{
-                "lista_promocoes": lista_promocoes,
+                "destaque": lista_promocoes,
             }
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
             "Data":{
-                "lista_promocoes": lista_promocoes,
+                "destaque": lista_promocoes,
             }
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="publicada", body=body)
         print(f" [x] Sent {message}")
 
-
     def close(self):
         self.connection.close()
 
 if __name__ == "__main__":
-    Promocao = Promocao()
-    thread_receive = threading.Thread(target=Promocao.receive_recebida)
+    Ranking = Ranking()
+    thread_receive = threading.Thread(target=Ranking.receive_recebida)
     thread_receive.start()

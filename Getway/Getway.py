@@ -6,6 +6,7 @@ import Util.util as util
 import threading
 import questionary
 
+
 class Getway:
     def __init__(self):
         self.connection = pika.BlockingConnection(
@@ -24,7 +25,7 @@ class Getway:
             print(f" [x] {obj}")
             if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
                 print(f" [x] Assinatura valida!")
-                self.lista_promocoes.append(obj["Data"])
+                self.lista_promocoes = obj["Data"]['lista_promocoes']
             else:
                 print(f" [x] Assinatura inválida!")
         self.channel.basic_consume(
@@ -40,21 +41,29 @@ class Getway:
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data": dados
+            "Data":{
+                "promocao": promocao,
+                "categoria": categoria,
+            }
         }
+
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="recebida", body=body)
         print(f" [x] Sent {message}")
 
-    def enviar_voto(self, voto):
+    def enviar_voto(self, voto, index):
         dados = { 
             "Data":{
                 "voto": voto,
+                "index": index
             }
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data": dados
+            "Data":{
+                "voto": voto,
+                "index": index
+            }
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="voto", body=body)
@@ -71,14 +80,26 @@ class Getway:
                 self.enviar_promocao(answers["promocao"], answers["categoria"])
             elif(Choice == "Listar Promoções"):
                 print("Lista de Promoções:")
-                for promocao in self.lista_promocoes:
-                    print(promocao)
+
+                for i, promocao in enumerate(self.lista_promocoes):
+                    print(f"{i} - {promocao}\n")
+
             elif(Choice == "Votar em Promoção"):
                 if len(self.lista_promocoes) == 0:
                     print("Nenhuma promoção disponível para votar.")
                     continue
-                promocao_escolhida = questionary.select("Selecione a promoção para votar", choices=self.lista_promocoes).ask()
-                self.enviar_voto(promocao_escolhida)
+                choices = []
+                for i, promocao in enumerate(self.lista_promocoes):
+                    choices.append(f"{i} - {promocao}")
+
+
+                promocao_escolhida = questionary.select(
+                    "Selecione a promoção para votar",
+                    choices=choices
+                ).ask()
+                valor = questionary.select("Valor do voto", choices=["Positivo", "Negativo"]).ask()
+
+                self.enviar_voto(valor, choices.index(promocao_escolhida))
 
             elif(Choice == "Exit"):
                 self.close()
