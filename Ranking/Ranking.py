@@ -10,7 +10,8 @@ class Ranking:
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
-        self.lista_destaques = []
+        self.ranking = {}
+        self.hot_deal_value = 5
 
     def receive_voto(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
@@ -22,28 +23,40 @@ class Ranking:
             print(f" [x] {obj}")
             if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
                 print(f" [x] Assinatura valida!")
-                self.lista_promocoes.append(obj["Data"])
-                self.enviar_publicada(self.lista_promocoes)
+                self.contabilizar_votos(obj["Data"])
             else:
                 print(f" [x] Assinatura inválida!")
+
         self.channel.basic_consume(
             queue=queue_name, on_message_callback=callback, auto_ack=True)
         self.channel.start_consuming()
 
-    def enviar_publicada(self, lista_promocoes):
+    def contabilizar_votos(self, data):
+        promocao = data["promocao"]
+        voto = data["voto"]
+        if promocao not in self.ranking:
+            self.ranking[promocao] = 0
+        if voto == "Positivo":
+            self.ranking[promocao]  = self.ranking[promocao] + 1
+        elif voto == "Negativo":
+            self.ranking[promocao]  = self.ranking[promocao] - 1
+
+        print(f" [x] Ranking atualizado: {self.ranking}")
+        if self.ranking[promocao] >= self.hot_deal_value:
+            print(f" [x] Promoção {promocao} é um hot deal!")
+
+    def enviar_destaque(self, promocao_destaque):
         dados = { 
             "Data":{
-                "destaque": lista_promocoes,
+                "destaque": promocao_destaque,
             }
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data":{
-                "destaque": lista_promocoes,
-            }
+            "Data": dados["Data"]
         }
         body = json.dumps(message).encode('utf-8')
-        self.channel.basic_publish(exchange='Promocoes', routing_key="publicada", body=body)
+        self.channel.basic_publish(exchange='Promocoes', routing_key="destaque", body=body)
         print(f" [x] Sent {message}")
 
     def close(self):
@@ -51,5 +64,5 @@ class Ranking:
 
 if __name__ == "__main__":
     Ranking = Ranking()
-    thread_receive = threading.Thread(target=Ranking.receive_recebida)
+    thread_receive = threading.Thread(target=Ranking.receive_voto)
     thread_receive.start()

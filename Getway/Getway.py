@@ -15,7 +15,7 @@ class Getway:
         self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
         self.lista_promocoes = []
 
-    def receive_promocoes(self):
+    def receive_publicada(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
         self.channel.queue_bind(exchange='Promocoes', queue=queue_name,routing_key="publicada")
@@ -25,7 +25,7 @@ class Getway:
             print(f" [x] {obj}")
             if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
                 print(f" [x] Assinatura valida!")
-                self.lista_promocoes = obj["Data"]['lista_promocoes']
+                self.lista_promocoes.append(obj["Data"]["promocao"])
             else:
                 print(f" [x] Assinatura inválida!")
         self.channel.basic_consume(
@@ -41,29 +41,23 @@ class Getway:
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data":{
-                "promocao": promocao,
-                "categoria": categoria,
-            }
+            "Data": dados["Data"]
         }
 
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="recebida", body=body)
         print(f" [x] Sent {message}")
 
-    def enviar_voto(self, voto, index):
+    def enviar_voto(self, voto, promocao):
         dados = { 
             "Data":{
                 "voto": voto,
-                "index": index
+                "promocao": promocao
             }
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data":{
-                "voto": voto,
-                "index": index
-            }
+            "Data": dados["Data"]
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="voto", body=body)
@@ -72,45 +66,55 @@ class Getway:
     def start_ui(self):
         while True:
             Choice = questionary.select("Selecione a ação", choices=["Cadastrar Promoção", "Listar Promoções", "Votar em Promoção", "Exit"]).ask()
-            if(Choice == "Cadastrar Promoção"):
-                answers = questionary.form(
-                    promocao = questionary.text("Digite a promoção:"),
-                    categoria = questionary.select("Selecione a categoria", choices=["Eletrônicos", "Roupas", "Alimentos"])
-                ).ask()
-                self.enviar_promocao(answers["promocao"], answers["categoria"])
-            elif(Choice == "Listar Promoções"):
-                print("Lista de Promoções:")
+            match Choice:
+                case "Cadastrar Promoção":
+                    self.cadastrar_promocao()
+                
+                case"Listar Promoções":
+                    self.listar_promocoes()
 
-                for i, promocao in enumerate(self.lista_promocoes):
-                    print(f"{i} - {promocao}\n")
+                case "Votar em Promoção":
+                    self.votar_em_promocao()
+                case "Exit":
+                    self.connection.close()
+                    break
 
-            elif(Choice == "Votar em Promoção"):
-                if len(self.lista_promocoes) == 0:
-                    print("Nenhuma promoção disponível para votar.")
-                    continue
-                choices = []
-                for i, promocao in enumerate(self.lista_promocoes):
-                    choices.append(f"{i} - {promocao}")
+    def cadastrar_promocao(self):
+        answers = questionary.form(
+        promocao = questionary.text("Digite a promoção:"),
+        categoria = questionary.select("Selecione a categoria", choices=["Eletrônicos", "Roupas", "Alimentos"])
+        ).ask()
+        self.enviar_promocao(answers["promocao"], answers["categoria"])
 
+    def listar_promocoes(self):
+        if len(self.lista_promocoes) == 0:
+            print("Nenhuma promoção disponível.")
+            return
+        print("Promoções disponíveis:")
+        for promocao in self.lista_promocoes:
+            print(f"- {promocao}")
 
-                promocao_escolhida = questionary.select(
-                    "Selecione a promoção para votar",
-                    choices=choices
-                ).ask()
-                valor = questionary.select("Valor do voto", choices=["Positivo", "Negativo"]).ask()
+    def votar_em_promocao(self):
+        if len(self.lista_promocoes) == 0:
+            print("Nenhuma promoção disponível para votar.")
+            return
 
-                self.enviar_voto(valor, choices.index(promocao_escolhida))
+        choices = []
+        for promocao in self.lista_promocoes:
+            choices.append(promocao["promocao"])
 
-            elif(Choice == "Exit"):
-                self.close()
-                break
-               
+        promocao_escolhida = questionary.select(
+            "Selecione a promoção para votar",
+            choices=choices
+        ).ask()
+        
+        valor = questionary.select("Valor do voto", choices=["Positivo", "Negativo"]).ask()
 
-    def close(self):
-        self.connection.close()
+        self.enviar_voto(valor, promocao_escolhida)
+
 
 if __name__ == "__main__":
     getway = Getway()
-    thread_receive = threading.Thread(target=getway.receive_promocoes)
+    thread_receive = threading.Thread(target=getway.receive_publicada)
     thread_receive.start()
     getway.start_ui()

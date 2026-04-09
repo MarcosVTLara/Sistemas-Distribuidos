@@ -10,7 +10,6 @@ class Promocao:
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
-        self.lista_promocoes = []
 
     def receive_recebida(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
@@ -22,25 +21,22 @@ class Promocao:
             print(f" [x] {obj}")
             if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
                 print(f" [x] Assinatura valida!")
-                self.lista_promocoes.append(obj["Data"])
-                self.enviar_publicada(self.lista_promocoes)
+                self.enviar_publicada(obj["Data"])
             else:
                 print(f" [x] Assinatura inválida!")
         self.channel.basic_consume(
             queue=queue_name, on_message_callback=callback, auto_ack=True)
         self.channel.start_consuming()
 
-    def enviar_publicada(self, lista_promocoes):
+    def enviar_publicada(self, promocao):
         dados = { 
             "Data":{
-                "lista_promocoes": lista_promocoes,
+                "promocao": promocao,
             }
         }
         message = {
             "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data":{
-                "lista_promocoes": lista_promocoes,
-            }
+            "Data": dados["Data"]
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="publicada", body=body)
