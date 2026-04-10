@@ -21,7 +21,7 @@ class Ranking:
         def callback(ch, method, properties, body):
             obj = json.loads(body)
             print(f" [x] {obj}")
-            if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
+            if util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Getway_public.pem"):
                 print(f" [x] Assinatura valida!")
                 self.contabilizar_votos(obj["Data"])
             else:
@@ -43,17 +43,16 @@ class Ranking:
 
         print(f" [x] Ranking atualizado: {self.ranking}")
         if self.ranking[promocao] >= self.hot_deal_value:
+            self.enviar_destaque(promocao)
             print(f" [x] Promoção {promocao} é um hot deal!")
 
     def enviar_destaque(self, promocao_destaque):
         dados = { 
-            "Data":{
-                "destaque": promocao_destaque,
-            }
+            "promocao": promocao_destaque,
         }
         message = {
-            "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data": dados["Data"]
+            "Signature": util.gerar_assinatura(dados, r".\privadas\Ranking_private.pem"),
+            "Data": dados
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="destaque", body=body)

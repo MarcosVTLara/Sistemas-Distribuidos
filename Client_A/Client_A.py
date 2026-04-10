@@ -17,7 +17,7 @@ class Client_A:
         def callback(ch, method, properties, body):
             obj = json.loads(body)
             print(f" [x] {obj}")
-            if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
+            if util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Notificacao_public.pem"):
                 print(f" [x] Assinatura valida!")
             else:
                 print(f" [x] Assinatura inválida!")

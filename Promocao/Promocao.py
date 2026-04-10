@@ -19,7 +19,7 @@ class Promocao:
         def callback(ch, method, properties, body):
             obj = json.loads(body)
             print(f" [x] {obj}")
-            if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
+            if util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Getway_public.pem"):
                 print(f" [x] Assinatura valida!")
                 self.enviar_publicada(obj["Data"])
             else:
@@ -30,13 +30,11 @@ class Promocao:
 
     def enviar_publicada(self, promocao):
         dados = { 
-            "Data":{
-                "promocao": promocao,
-            }
+            "promocao": promocao,
         }
         message = {
-            "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data": dados["Data"]
+            "Signature": util.gerar_assinatura(dados, r".\privadas\Promocao_private.pem"),
+            "Data": dados
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="publicada", body=body)

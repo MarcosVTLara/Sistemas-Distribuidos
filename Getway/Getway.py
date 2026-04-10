@@ -18,12 +18,12 @@ class Getway:
     def receive_publicada(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
-        self.channel.queue_bind(exchange='Promocoes', queue=queue_name,routing_key="publicada")
+        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="publicada")
         print(' [*] Waiting for logs. To exit press CTRL+C')
         def callback(ch, method, properties, body):
             obj = json.loads(body)
             print(f" [x] {obj}")
-            if util.verificar_assinatura(obj["Data"], obj["Signature"], "chave_publica"):
+            if util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Promocao_public.pem"):
                 print(f" [x] Assinatura valida!")
                 self.lista_promocoes.append(obj["Data"]["promocao"])
             else:
@@ -34,14 +34,12 @@ class Getway:
 
     def enviar_promocao(self, promocao, categoria):
         dados = { 
-            "Data":{
-                "promocao": promocao,
-                "categoria": categoria,
-            }
+            "promocao": promocao,
+            "categoria": categoria,
         }
         message = {
-            "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data": dados["Data"]
+            "Signature": util.gerar_assinatura(dados, r".\privadas\Getway_private.pem"),
+            "Data": dados
         }
 
         body = json.dumps(message).encode('utf-8')
@@ -50,14 +48,12 @@ class Getway:
 
     def enviar_voto(self, voto, promocao):
         dados = { 
-            "Data":{
-                "voto": voto,
-                "promocao": promocao
-            }
+            "voto": voto,
+            "promocao": promocao
         }
         message = {
-            "Signature": util.gerar_assinatura(dados, "chave_privada"),
-            "Data": dados["Data"]
+            "Signature": util.gerar_assinatura(dados, r".\privadas\Getway_private.pem"),
+            "Data": dados
         }
         body = json.dumps(message).encode('utf-8')
         self.channel.basic_publish(exchange='Promocoes', routing_key="voto", body=body)
