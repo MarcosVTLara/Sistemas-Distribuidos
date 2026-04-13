@@ -9,10 +9,9 @@ import questionary
 
 class Getway:
     def __init__(self):
-        self.connection_sub = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
-        self.connection_pub = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
+        params = pika.ConnectionParameters(host='localhost', heartbeat=0)
+        self.connection_sub = pika.BlockingConnection(params)
+        self.connection_pub = pika.BlockingConnection(params)
         self.channel_sub = self.connection_sub.channel()
         self.channel_sub.exchange_declare(exchange='Promocoes', exchange_type='topic')
         self.channel_pub = self.connection_pub.channel()

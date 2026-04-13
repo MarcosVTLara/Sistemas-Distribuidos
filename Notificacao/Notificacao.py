@@ -5,12 +5,10 @@ import threading
 
 class Notificacao:
     def __init__(self):
-        self.connection_1 = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
-        self.connection_2 = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
-        self.connection_pub = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
+        params = pika.ConnectionParameters(host='localhost', heartbeat=0)
+        self.connection_1 = pika.BlockingConnection(params)
+        self.connection_2 = pika.BlockingConnection(params)
+        self.connection_pub = pika.BlockingConnection(params)
         self.channel_1 = self.connection_1.channel()
         self.channel_1.exchange_declare(exchange='Promocoes', exchange_type='topic')
         self.channel_2 = self.connection_2.channel()
