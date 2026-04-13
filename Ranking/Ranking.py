@@ -9,14 +9,15 @@ class Ranking:
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
+        self.channel.exchange_declare(exchange='Promocoes', exchange_type='topic')
         self.ranking = {}
         self.hot_deal_value = 5
+        self.hot_deals = set()
 
     def receive_voto(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
-        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="voto")
+        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="promocao.voto")
         print(' [*] Waiting for logs. To exit press CTRL+C')
         def callback(ch, method, properties, body):
             obj = json.loads(body)
@@ -42,7 +43,8 @@ class Ranking:
             self.ranking[promocao]  = self.ranking[promocao] - 1
 
         print(f" [x] Ranking atualizado: {self.ranking}")
-        if self.ranking[promocao] >= self.hot_deal_value:
+        if self.ranking[promocao] >= self.hot_deal_value and promocao not in self.hot_deals:
+            self.hot_deals.add(promocao)
             self.enviar_destaque(promocao)
             print(f" [x] Promoção {promocao} é um hot deal!")
 
@@ -55,7 +57,7 @@ class Ranking:
             "Data": dados
         }
         body = json.dumps(message).encode('utf-8')
-        self.channel.basic_publish(exchange='Promocoes', routing_key="destaque", body=body)
+        self.channel.basic_publish(exchange='Promocoes', routing_key="promocao.destaque", body=body)
         print(f" [x] Sent {message}")
 
     def close(self):
