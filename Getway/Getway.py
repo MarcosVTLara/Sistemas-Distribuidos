@@ -12,13 +12,13 @@ class Getway:
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
+        self.channel.exchange_declare(exchange='Promocoes', exchange_type='topic')
         self.lista_promocoes = []
 
     def receive_publicada(self):
         result = self.channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
-        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="publicada")
+        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="promocao.publicada")
         print(' [*] Waiting for logs. To exit press CTRL+C')
         def callback(ch, method, properties, body):
             obj = json.loads(body)
@@ -43,7 +43,7 @@ class Getway:
         }
 
         body = json.dumps(message).encode('utf-8')
-        self.channel.basic_publish(exchange='Promocoes', routing_key="recebida", body=body)
+        self.channel.basic_publish(exchange='Promocoes', routing_key="promocao.recebida", body=body)
         print(f" [x] Sent {message}")
 
     def enviar_voto(self, voto, promocao):
@@ -56,7 +56,7 @@ class Getway:
             "Data": dados
         }
         body = json.dumps(message).encode('utf-8')
-        self.channel.basic_publish(exchange='Promocoes', routing_key="voto", body=body)
+        self.channel.basic_publish(exchange='Promocoes', routing_key="promocao.voto", body=body)
         print(f" [x] Sent {message}")
 
     def start_ui(self):

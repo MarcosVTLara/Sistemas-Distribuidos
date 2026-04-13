@@ -1,28 +1,37 @@
 #!/usr/bin/env python
 import pika
 import json
-import Util.util as util
 import threading
+
+# Categorias de interesse hardcoded conforme o trabalho
+CATEGORIAS_INTERESSE = ["promocao.eletronicos", "promocao.roupas"]
 
 class Client_A:
     def __init__(self):
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='Promocoes', exchange_type='direct')
+        self.channel.exchange_declare(exchange='Promocoes', exchange_type='topic')
         result = self.channel.queue_declare(queue='', exclusive=True)
-        queue_name = result.method.queue
-        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="voto") # TROCAR VOTO POR CATEGORIA
-        print(' [*] Waiting for logs. To exit press CTRL+C')
+        self.queue_name = result.method.queue
+        for routing_key in CATEGORIAS_INTERESSE:
+            self.channel.queue_bind(
+                exchange='Promocoes', queue=self.queue_name, routing_key=routing_key)
+            print(f" [*] Inscrito em: {routing_key}")
+
+    def receive(self):
+        print(' [*] Aguardando notificações de promoções. Para sair pressione CTRL+C')
         def callback(ch, method, properties, body):
-            obj = json.loads(body)
-            print(f" [x] {obj}")
-            if util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Notificacao_public.pem"):
-                print(f" [x] Assinatura valida!")
-            else:
-                print(f" [x] Assinatura inválida!")
+            dados = json.loads(body)
+            print(f"\n [!] NOVA NOTIFICAÇÃO [{method.routing_key}]: {dados['promocao']}")
+        self.channel.basic_consume(
+            queue=self.queue_name, on_message_callback=callback, auto_ack=True)
+        self.channel.start_consuming()
+
+    def close(self):
+        self.connection.close()
 
 if __name__ == "__main__":
-    Ranking = Ranking()
-    thread_receive = threading.Thread(target=Ranking.receive_voto)
+    client = Client_A()
+    thread_receive = threading.Thread(target=client.receive)
     thread_receive.start()
