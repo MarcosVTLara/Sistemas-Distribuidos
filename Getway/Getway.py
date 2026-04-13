@@ -9,16 +9,20 @@ import questionary
 
 class Getway:
     def __init__(self):
-        self.connection = pika.BlockingConnection(
+        self.connection_sub = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
-        self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='Promocoes', exchange_type='topic')
+        self.connection_pub = pika.BlockingConnection(
+            pika.ConnectionParameters(host='localhost'))
+        self.channel_sub = self.connection_sub.channel()
+        self.channel_sub.exchange_declare(exchange='Promocoes', exchange_type='topic')
+        self.channel_pub = self.connection_pub.channel()
+        self.channel_pub.exchange_declare(exchange='Promocoes', exchange_type='topic')
         self.lista_promocoes = []
 
     def receive_publicada(self):
-        result = self.channel.queue_declare(queue='', exclusive=True)
+        result = self.channel_sub.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
-        self.channel.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="promocao.publicada")
+        self.channel_sub.queue_bind(exchange='Promocoes', queue=queue_name, routing_key="promocao.publicada")
         print(' [*] Waiting for logs. To exit press CTRL+C')
         def callback(ch, method, properties, body):
             obj = json.loads(body)
@@ -28,9 +32,9 @@ class Getway:
                 self.lista_promocoes.append(obj["Data"]["promocao"])
             else:
                 print(f" [x] Assinatura inválida!")
-        self.channel.basic_consume(
+        self.channel_sub.basic_consume(
             queue=queue_name, on_message_callback=callback, auto_ack=True)
-        self.channel.start_consuming()
+        self.channel_sub.start_consuming()
 
     def enviar_promocao(self, promocao, categoria):
         dados = { 
@@ -43,7 +47,7 @@ class Getway:
         }
 
         body = json.dumps(message).encode('utf-8')
-        self.channel.basic_publish(exchange='Promocoes', routing_key="promocao.recebida", body=body)
+        self.channel_pub.basic_publish(exchange='Promocoes', routing_key="promocao.recebida", body=body)
         print(f" [x] Sent {message}")
 
     def enviar_voto(self, voto, promocao):
@@ -56,7 +60,7 @@ class Getway:
             "Data": dados
         }
         body = json.dumps(message).encode('utf-8')
-        self.channel.basic_publish(exchange='Promocoes', routing_key="promocao.voto", body=body)
+        self.channel_pub.basic_publish(exchange='Promocoes', routing_key="promocao.voto", body=body)
         print(f" [x] Sent {message}")
 
     def start_ui(self):
@@ -72,7 +76,8 @@ class Getway:
                 case "Votar em Promoção":
                     self.votar_em_promocao()
                 case "Exit":
-                    self.connection.close()
+                    self.connection_pub.close()
+                    self.connection_sub.close()
                     break
 
     def cadastrar_promocao(self):
