@@ -14,17 +14,20 @@ class Processo(object):
     def __init__(self, name, port):
         self.name = name
         self.port = port
-        self.state = States.SEGUIDOR
-        self.timeout = random.uniform(3, 10)
+        self.leaderId = None
+        self.timeout = random.uniform(4, 10)
         print(f"[{self.name}]Timeout determinado {self.timeout}")
         self.iniciar_pyro()
         self.count_timeout = time.perf_counter()
-        self.termo = 1
+        self.currentTerm = 0
+        self.votedFor = None
         self.vote = 0
-        # self.log
+        self.log = []
         self.thread = threading.Thread(target=self._loop_daemon, daemon=True)
         self.thread.start()
         self.first_vote = True
+        self.state = States.SEGUIDOR
+
 
     def iniciar_pyro(self):
         self.daemon = Pyro5.server.Daemon(host="localhost", port=self.port)
@@ -32,7 +35,6 @@ class Processo(object):
         print(self.uri)
 
     def _loop_daemon(self):
-        print("Daemon rodando em thread separada...")
         self.daemon.requestLoop()
 
     def fsm(self):
@@ -43,42 +45,30 @@ class Processo(object):
                     self.seguidor_state()
 
                 case States.CANDIDATO:
+                    self.currentTerm += 1                    
                     print(f"[{self.name}]CANDIDATO")
                     self.candidato_state()
 
                 case States.LIDER:
-                    print(f"[{self.name}] LIDER")
+                    print(f"[{self.name}] LIDER, currentTerm: {self.currentTerm}")
                     self.lider_state()
 
                 case _:
                     print("não existe")
 
-            time.sleep(0.5)
-    
-    def aux_candidatura(self, processo, port):
-        try:
-            server = Pyro5.api.Proxy(f"PYRO:{processo}@localhost:{port}")
-            self.vote += server.ask_for_vote(self.termo)
-        except Exception as e:
-            print(f"Error calling ask_for_vote on {processo}:", e)
+            time.sleep(0.1)
 
     def candidato_state(self):
-        for i in range(1, 5):
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                processo = f"processo{i}"
-                porta = 9090 + i
-                if processo == self.name:
-                    continue
-                executor.submit(self.aux_candidatura, processo, porta)
+        self.RequestVote()
 
         if(self.vote >= 3):
-            self.state = States.LIDER
             self.publish_leader()
+            self.state = States.LIDER
         else:
-            self.vote = 0
-            self.state = States.SEGUIDOR
             self.count_timeout = time.perf_counter()
             print(f"[{self.name}]Candidatura falhou, voltando para seguidor")
+            self.vote = 0
+            self.state = States.SEGUIDOR
 
     def seguidor_state(self):
         end = time.perf_counter()
@@ -88,40 +78,62 @@ class Processo(object):
             self.state = States.CANDIDATO
     
     def lider_state(self):
-        self.send_heartbeat()
+        self.AppendEntries()
        
-    def ask_for_vote(self, termo):
-        if(self.first_vote and self.termo <= termo):
-            self.first_vote = False
-            return 1
-        else:
-            return 0
+    def aux_candidatura(self, processo, port):
+        try:
+            server = Pyro5.api.Proxy(f"PYRO:{processo}@localhost:{port}")
+            if server.ReceiveRequestVote(self.currentTerm, self.name, 0, 0):
+                self.vote += 1
+        except Exception as e:
+            print(f"Error calling ask_for_vote on {processo}:", e)
+            
+    def RequestVote(self):
+        for i in range(1, 5):
+            processo = f"processo{i}"
+            porta = 9090 + i
+            if processo == self.name:
+                    continue
+            self.aux_candidatura(processo, porta)
 
+    def ReceiveRequestVote(self, termo, candidatoId, lastLogIndex, lastLogTerm):
+        if(self.currentTerm < termo and self.state != States.LIDER):
+            self.currentTerm = termo
+            self.votedFor = None
+        else:
+            return False
+        
+        if(self.votedFor is None or self.votedFor == candidatoId):
+            self.votedFor = candidatoId
+            return True
+        else:
+            return False
+        
     def aux_heartbeat(self, processo, port):
         try:
             server = Pyro5.api.Proxy(f"PYRO:{processo}@localhost:{port}")
-            server.receive_heartbeat()
+            server.ReceiveAppendEntries(self.currentTerm, self.name)
         except Exception as e:
             print(f"Error calling receive_heartbeat on {processo}:", e)
 
     @Pyro5.server.oneway
-    def send_heartbeat(self):
+    def AppendEntries(self):
         for i in range(1, 5):
             processo = f"processo{i}"
             porta = 9090 + i
             if processo == self.name:
                     continue
             self.aux_heartbeat(processo, porta)
-            # with ThreadPoolExecutor(max_workers=3) as executor:
-
-            #     executor.submit(self.aux_heartbeat, processo, porta)
 
     @Pyro5.server.oneway
-    def receive_heartbeat(self):
+    def ReceiveAppendEntries(self, termo, liderId):
         self.count_timeout = time.perf_counter()
+        self.currentTerm = termo
+        self.leaderId = liderId
         print(f"[{self.name}] HeartBeat Recebido")
-        self.state = States.SEGUIDOR      
-    
+        self.state = States.SEGUIDOR
+
+   
     @Pyro5.server.oneway
     def receive_info(self, info):
         print(f"[{self.name}] Client info")
@@ -136,8 +148,3 @@ class Processo(object):
     def publish_leader(self):
         ns = Pyro5.core.locate_ns()
         ns.register("leader", self.uri)
-
-
-if __name__ == "__main__":
-    processo = Processo("processo1", 9091)
-    processo.fsm()

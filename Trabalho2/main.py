@@ -1,4 +1,4 @@
-from processo import Processo
+from processoFile import Processo
 from concurrent.futures import ThreadPoolExecutor
 
 # from Trabalho2.processo2 import Processo2
