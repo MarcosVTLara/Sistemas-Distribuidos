@@ -20,8 +20,9 @@ class Processo(object):
         self.iniciar_pyro()
         self.count_timeout = time.perf_counter()
         self.currentTerm = 0
-        self.nextIndex = []
-        self.matchIndex = []
+        self.nextIndex = [0, 0, 0, 0]
+        self.matchIndex = [0, 0, 0, 0]
+        self.indexUncommited = None
         self.votedFor = None
         self.vote = 0
         self.log = []
@@ -107,11 +108,11 @@ class Processo(object):
         if termo > self.currentTerm:
             self.currentTerm = termo
             self.votedFor = None
-            self.state = States.SEGUIDOR  # MUITO IMPORTANTE
+            self.state = States.SEGUIDOR
+            self.count_timeout = time.perf_counter()
         
         if(self.votedFor is None or self.votedFor == candidatoId):
             self.votedFor = candidatoId
-            self.count_timeout = time.perf_counter()
             print(f"[{self.name}]: Votei no {candidatoId}, termo: {termo}")
             return True
         else:
@@ -120,28 +121,58 @@ class Processo(object):
     def aux_heartbeat(self, processo, port):
         # Tempo medio gasto ~0.3 -0.6 segundos
         try:
+            if self.indexUncommited is not None:
+                log = self.log[self.indexUncommited] if self.indexUncommited < len(self.log) else None
+                print(f"[{self.name}] Enviando log para {processo}: {log}")
+            else:
+                log = None
+            # log = self.log[self.indexUncommited] if self.indexUncommited is not None and self.indexUncommited < len(self.log) else None
             server = Pyro5.api.Proxy(f"PYRO:{processo}@localhost:{port}")
-            server.ReceiveAppendEntries(self.currentTerm, self.name, None, None, None, None)
+            response = server.ReceiveAppendEntries(self.currentTerm, self.name, None, None,  log, self.indexUncommited)
+            return response
 
         except Exception as e:
-            print(f"Error calling receive_heartbeat on {processo}:", e)
+            print(f"Error calling ReceiveAppendEntries on {processo}:", e)
+            return False
 
-    @Pyro5.server.oneway
     def AppendEntries(self):
+        somatorio = 0
         for i in range(1, 5):
             processo = f"processo{i}"
             porta = 9090 + i
             if processo == self.name:
                     continue
-            self.aux_heartbeat(processo, porta)
+            response = self.aux_heartbeat(processo, porta)
+            if response:
+                somatorio += 1
 
-    @Pyro5.server.oneway
+        if somatorio > 2 and self.indexUncommited is not None and self.indexUncommited < len(self.log):
+            self.log[self.indexUncommited]["status"] = messageStatus.COMMITED
+            print(f"[{self.name}] Log comitado: {self.log[self.indexUncommited]}")
+            self.indexUncommited += 1
+
     def ReceiveAppendEntries(self, termo, liderId, prevLogIndex, prevLogTerm, entries, leaderCommit):
         self.count_timeout = time.perf_counter()
+        self.state = States.SEGUIDOR
         self.currentTerm = termo
         self.leaderId = liderId
-        print(f"[{self.name}] HeartBeat Recebido")
-        self.state = States.SEGUIDOR
+        if leaderCommit is not None and self.indexUncommited is None:
+            self.indexUncommited = leaderCommit
+            self.log[self.indexUncommited]["status"] = messageStatus.COMMITED
+            print(f"[{self.name}] Log comitado por líder: {self.log[self.indexUncommited]}")
+
+        if(entries is None or len(entries) == 0):
+            print(f"[{self.name}] HeartBeat Recebido")
+            return True
+        else:
+            self.log.append({
+                "message": entries["message"],
+                "termo": entries["termo"],
+                "status": messageStatus.UNCOMMITED
+            })
+            print(f"[{self.name}] Logs Recebido: {entries}")
+            return True
+
    
     @Pyro5.server.oneway
     def receive_info(self, info):
@@ -150,14 +181,15 @@ class Processo(object):
 
     @Pyro5.server.oneway
     def ReceiveLog(self, message):
-        print("Chegou aqui")
+        print(f"[{self.name}] Recebi log: {message}")
+        if len(self.log) == 0:
+            self.indexUncommited = 0
         self.log.append({
             "message": message,
             "termo": self.currentTerm,
             "status": messageStatus.UNCOMMITED
         })
-        # self.nextIndex += 1
-        print(f"self.log: {self.log}")
+
 
 
     @Pyro5.server.oneway
