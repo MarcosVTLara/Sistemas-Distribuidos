@@ -7,19 +7,21 @@ class client():
         self.server = Pyro5.api.Proxy(self.uri)
 
 
-    def hello_word(self):
+    def kill_the_leader(self):
         try:
-            print(self.server.hello_word())
+            self.server.killMe()
+            print("I killed the Leader")
         except Exception as e:
-            print("Error calling hello_word:", e)
+            print("Error calling kill_the_leader:", e)
 
-    def hello_word_onew_way(self):
+
+    def send_message(self, message):
         try:
-            self.server.hello_word_onew_way()
+            self.server.ReceiveLog(message)
         except Exception as e:
-            print("Error calling hello_word_onew_way:", e)
+            print("Error calling send_message:", e)
 
 if __name__ == "__main__":
     client = client()
-    client.hello_word()
-    client.hello_word_onew_way()
+    # client.kill_the_leader()
+    client.send_message("6")
