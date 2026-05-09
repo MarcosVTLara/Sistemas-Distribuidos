@@ -24,4 +24,4 @@ class client():
 if __name__ == "__main__":
     client = client()
     # client.kill_the_leader()
-    client.send_message("6")
+    client.send_message("3")
