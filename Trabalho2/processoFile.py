@@ -149,8 +149,9 @@ class Processo(object):
 
         # Maioria confirmou → commita e avança
         if somatorio > 2 and self.indexUncommited is not None and self.indexUncommited < len(self.log):
-            self.log[self.indexUncommited]["status"] = messageStatus.COMMITED
+            self.log[self.indexUncommited]["status"] = messageStatus.COMMITED            
             print(f"[{self.name}] Log comitado: {self.log[self.indexUncommited]}")
+            self.notify_client_commit(self.indexUncommited)
             self.indexUncommited += 1
 
     def ReceiveAppendEntries(self, termo, liderId, prevLogIndex, prevLogTerm, entries, leaderCommit):
@@ -184,7 +185,6 @@ class Processo(object):
 
         return True
 
-   
     @Pyro5.server.oneway
     def receive_info(self, info):
         print(f"[{self.name}] Client info")
@@ -202,9 +202,6 @@ class Processo(object):
         })
         print(f"[{self.name}] Log atual: {self.log}")
 
-
-
-
     @Pyro5.server.oneway
     def killMe(self):
         self.state = States.IDLE
@@ -219,6 +216,16 @@ class Processo(object):
         ns = Pyro5.core.locate_ns()
         ns.register("leader", self.uri)
         print(f"DECLARE LEADER {self.uri}")
+
+    def notify_client_commit(self, index):
+        try:
+            server = Pyro5.api.Proxy("PYRO:cliente@localhost:9089")
+
+            server.receive_callback(f"Cliente notificado {self.log[index]}")
+
+        except Exception as e:
+            print(f"[{self.name}] Erro ao notificar cliente:", e)
+
 
 if __name__ == "__main__":
     import sys
