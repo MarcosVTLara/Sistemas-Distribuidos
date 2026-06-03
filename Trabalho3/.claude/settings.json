@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Projetos\\\\Sistemas-Distribuidos\\\\Trabalho3\\\\Front\\\\src\" -Recurse -Include \"*.jsx\", \"*.js\", \"main.jsx\", \"index.jsx\", \"App.jsx\", \"*.json\")",
+      "Bash(Select-Object -ExpandProperty FullName)"
+    ]
+  }
+}

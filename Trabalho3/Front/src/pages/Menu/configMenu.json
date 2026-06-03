@@ -1,0 +1,38 @@
+{
+    "User":
+    [
+        {
+            "label": "Feed",
+            "icon":  "🔔",
+            "key": "feed"
+        },
+        {
+            "label": "Votar em Promoções",
+            "icon":  "👍",
+            "key": "avaliarPromo"
+        },
+        {
+            "label": "Registrar Interesse",
+            "icon":  "➕",
+            "key": "registrarInteresse"
+        },
+        {
+            "label": "Cancelar Interesse",
+            "icon":  "➖",
+            "key": "cancelarInteresse"
+        }
+    ],
+    "Loja":
+    [    
+        {
+            "label": "Cadastrar Promoção",
+            "icon":  "🏷️",
+            "key": "cadastrarPromo"
+        },
+        {
+            "label": "Informar Email",
+            "icon":  "📧",
+            "key": "cadastrarEmail"
+        }
+    ]
+}
