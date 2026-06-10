@@ -1,5 +1,6 @@
 from enum import Enum
-import json 
+import json
+import os
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.exceptions import InvalidSignature
@@ -52,3 +53,16 @@ def carregar_privada(caminho):
 def carregar_publica(caminho):
     with open(caminho, "rb") as f:
         return serialization.load_pem_public_key(f.read())
+
+def carregar_env(caminho=".env"):
+    """Carrega variáveis de ambiente de um arquivo .env (parser simples,
+    sem dependências externas). Não sobrescreve variáveis já definidas."""
+    if not os.path.exists(caminho):
+        return
+    with open(caminho, encoding="utf-8") as f:
+        for linha in f:
+            linha = linha.strip()
+            if not linha or linha.startswith("#") or "=" not in linha:
+                continue
+            chave, valor = linha.split("=", 1)
+            os.environ.setdefault(chave.strip(), valor.strip())

@@ -1,27 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Page, Title, List, Row, Info, Nome, Sub, BtnAdd } from './RegistrarInteresse.styles';
+import GlobalVariablesConsumer from 'src/context/GlobalVariables';
+import { registrarInteresse } from 'src/Fetch/FetchData';
 
-const mockCategorias = [
-    { id: 1, nome: 'Eletrônicos', promos: 8 },
-    { id: 2, nome: 'Moda',        promos: 5 },
-    { id: 3, nome: 'Alimentos',   promos: 12 },
-    { id: 4, nome: 'Esportes',    promos: 3 },
-];
+const CATEGORIAS = ['Eletrônicos', 'Roupas', 'Alimentos'];
 
 function RegistrarInteresse() {
+    const { sessao, interesses, setInteresses } = GlobalVariablesConsumer();
+    const [erro, setErro] = useState('');
+
+    const handleAdd = async (categoria) => {
+        try {
+            const { interesses: atualizados } = await registrarInteresse(sessao, categoria);
+            setInteresses(atualizados);
+            setErro('');
+        } catch (e) {
+            setErro(e.message);
+        }
+    };
+
     return (
         <Page>
             <Title>Registrar Interesse</Title>
+            {erro && <Sub style={{ color: '#e53e3e' }}>{erro}</Sub>}
             <List>
-                {mockCategorias.map(c => (
-                    <Row key={c.id}>
-                        <Info>
-                            <Nome>{c.nome}</Nome>
-                            <Sub>{c.promos} promoções ativas</Sub>
-                        </Info>
-                        <BtnAdd>+ Adicionar</BtnAdd>
-                    </Row>
-                ))}
+                {CATEGORIAS.map(c => {
+                    const jaTem = interesses.includes(c);
+                    return (
+                        <Row key={c}>
+                            <Info>
+                                <Nome>{c}</Nome>
+                                <Sub>{jaTem ? 'Interesse registrado' : 'Sem interesse'}</Sub>
+                            </Info>
+                            <BtnAdd onClick={() => handleAdd(c)} disabled={jaTem}>
+                                {jaTem ? '✓ Adicionado' : '+ Adicionar'}
+                            </BtnAdd>
+                        </Row>
+                    );
+                })}
             </List>
         </Page>
     );

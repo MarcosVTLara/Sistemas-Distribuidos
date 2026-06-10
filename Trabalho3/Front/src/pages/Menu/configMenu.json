@@ -12,6 +12,11 @@
             "key": "avaliarPromo"
         },
         {
+            "label": "Consultar Promoções",
+            "icon":  "🔍",
+            "key": "consultarPromo"
+        },
+        {
             "label": "Registrar Interesse",
             "icon":  "➕",
             "key": "registrarInteresse"

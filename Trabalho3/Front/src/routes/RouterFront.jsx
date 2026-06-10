@@ -7,6 +7,7 @@ import CadastrarPromo from 'src/pages/Generic/Content/Loja/CadastrarPromo/Cadast
 import CadastrarEmail from 'src/pages/Generic/Content/Loja/CadastrarEmail/CadastrarEmail';
 import Feed from 'src/pages/Generic/Content/User/Feed/Feed';
 import AvaliarPromo from 'src/pages/Generic/Content/User/AvaliarPromo/AvaliarPromo';
+import ConsultarPromo from 'src/pages/Generic/Content/User/ConsultarPromo/ConsultarPromo';
 import RegistrarInteresse from 'src/pages/Generic/Content/User/RegistrarInteresse/RegistrarInteresse';
 import CancelarInteresse from 'src/pages/Generic/Content/User/CancelarInteresse/CancelarInteresse';
 import { Layout, Content } from './RouterFront.styles';
@@ -35,6 +36,7 @@ function RouterFront() {
                     <Route path="/user" element={<Generic />}>
                         <Route path="feed" element={<Feed />} />
                         <Route path="avaliarPromo" element={<AvaliarPromo />} />
+                        <Route path="consultarPromo" element={<ConsultarPromo />} />
                         <Route path="registrarInteresse" element={<RegistrarInteresse />} />
                         <Route path="cancelarInteresse" element={<CancelarInteresse />} />
                     </Route>

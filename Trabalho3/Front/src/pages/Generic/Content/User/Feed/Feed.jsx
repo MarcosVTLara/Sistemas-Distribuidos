@@ -1,24 +1,21 @@
 import React from 'react';
 import { Page, Title, List, Card, Tag, Message, Time, Empty } from './Feed.styles';
-
-const mockNotificacoes = [
-    { id: 1, categoria: 'Eletrônicos', mensagem: 'Nova promoção: TV 55" com 30% off', hora: '14:32' },
-    { id: 2, categoria: 'Moda',        mensagem: 'Liquidação de inverno – até 50%',   hora: '13:10' },
-    { id: 3, categoria: 'Alimentos',   mensagem: 'Frete grátis acima de R$80',         hora: '11:55' },
-];
+import { subscribeFeed, getFeedSnapshot } from 'src/Fetch/FetchData';
 
 function Feed() {
-    const notificacoes = mockNotificacoes;
+    // Lê o feed do store externo: atualiza em tempo real a cada evento SSE,
+    // sem precisar sair e voltar para a página.
+    const feed = React.useSyncExternalStore(subscribeFeed, getFeedSnapshot);
 
     return (
         <Page>
             <Title>Feed de Notificações</Title>
-            {notificacoes.length === 0
-                ? <Empty>Nenhuma notificação no momento.</Empty>
+            {feed.length === 0
+                ? <Empty>Nenhuma notificação no momento. Registre interesses para receber promoções.</Empty>
                 : (
                     <List>
-                        {notificacoes.map(n => (
-                            <Card key={n.id}>
+                        {feed.map(n => (
+                            <Card key={n.key}>
                                 <Tag>{n.categoria}</Tag>
                                 <Message>{n.mensagem}</Message>
                                 <Time>{n.hora}</Time>

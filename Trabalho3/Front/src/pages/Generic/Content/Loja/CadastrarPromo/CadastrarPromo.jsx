@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { Page, Title, Card, Group, Label, Input, ErrorMsg, Button } from './CadastrarPromo.styles';
+import GlobalVariablesConsumer from 'src/context/GlobalVariables';
+import { cadastrarPromocao } from 'src/Fetch/FetchData';
+
+const CATEGORIAS = ['Eletrônicos', 'Roupas', 'Alimentos'];
 
 function CadastrarPromo() {
+    const { lojaEmail } = GlobalVariablesConsumer();
     const [nome, setNome] = useState('');
     const [descricao, setDescricao] = useState('');
+    const [categoria, setCategoria] = useState(CATEGORIAS[0]);
     const [errors, setErrors] = useState({});
+    const [feedback, setFeedback] = useState('');
 
     const validate = () => {
         const e = {};
@@ -14,8 +21,17 @@ function CadastrarPromo() {
         return Object.keys(e).length === 0;
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        setFeedback('');
         if (!validate()) return;
+        try {
+            await cadastrarPromocao({ nome, descricao, categoria, email: lojaEmail });
+            setFeedback('Promoção enviada com sucesso!');
+            setNome('');
+            setDescricao('');
+        } catch (err) {
+            setFeedback(`Erro: ${err.message}`);
+        }
     };
 
     return (
@@ -42,7 +58,14 @@ function CadastrarPromo() {
                     />
                     {errors.descricao && <ErrorMsg>{errors.descricao}</ErrorMsg>}
                 </Group>
+                <Group>
+                    <Label>Categoria</Label>
+                    <Input as="select" value={categoria} onChange={e => setCategoria(e.target.value)}>
+                        {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </Input>
+                </Group>
                 <Button onClick={handleSubmit}>Cadastrar</Button>
+                {feedback && <ErrorMsg as="div" style={{ color: feedback.startsWith('Erro') ? '#e53e3e' : '#48bb78' }}>{feedback}</ErrorMsg>}
             </Card>
         </Page>
     );

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Page, Title, Card, Group, Label, Input, ErrorMsg, Button } from './CadastrarEmail.styles';
+import GlobalVariablesConsumer from 'src/context/GlobalVariables';
 
 function CadastrarEmail() {
-    const [email, setEmail] = useState('');
+    const { lojaEmail, salvarLojaEmail } = GlobalVariablesConsumer();
+    const [email, setEmail] = useState(lojaEmail);
     const [error, setError] = useState('');
+    const [feedback, setFeedback] = useState('');
 
     const validate = () => {
         if (!email.trim()) { setError('Campo obrigatório'); return false; }
@@ -12,7 +15,10 @@ function CadastrarEmail() {
     };
 
     const handleSubmit = () => {
+        setFeedback('');
         if (!validate()) return;
+        salvarLojaEmail(email.trim());
+        setFeedback('Email salvo! Será usado para notificar hot deals.');
     };
 
     return (
@@ -31,6 +37,7 @@ function CadastrarEmail() {
                     {error && <ErrorMsg>{error}</ErrorMsg>}
                 </Group>
                 <Button onClick={handleSubmit}>Salvar</Button>
+                {feedback && <ErrorMsg as="div" style={{ color: '#48bb78' }}>{feedback}</ErrorMsg>}
             </Card>
         </Page>
     );

@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 import pika
+import os
 import json
 import Util.util as util
 import threading
 
+util.carregar_env()
+
+RABBIT_HOST = os.environ.get("RABBITMQ_HOST", "localhost")
+
 class Ranking:
     def __init__(self):
         self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
+            pika.ConnectionParameters(host=RABBIT_HOST))
         self.channel = self.connection.channel()
         self.channel.exchange_declare(exchange='Promocoes', exchange_type='topic')
         self.ranking = {}
-        self.hot_deal_value = 5
+        # Limite de votos líquidos para virar hot deal (configurável via .env)
+        self.hot_deal_value = int(os.environ.get("HOT_DEAL_VOTOS", "10"))
         self.hot_deals = set()
 
     def receive_voto(self):

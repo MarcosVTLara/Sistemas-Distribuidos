@@ -1,26 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Page, Title, List, Row, Info, Nome, Sub, BtnRemove, Empty } from './CancelarInteresse.styles';
-
-const mockInteresses = [
-    { id: 1, nome: 'Eletrônicos', promos: 8 },
-    { id: 2, nome: 'Alimentos',   promos: 12 },
-];
+import GlobalVariablesConsumer from 'src/context/GlobalVariables';
+import { cancelarInteresse } from 'src/Fetch/FetchData';
 
 function CancelarInteresse() {
+    const { sessao, interesses, setInteresses } = GlobalVariablesConsumer();
+    const [erro, setErro] = useState('');
+
+    const handleRemove = async (categoria) => {
+        try {
+            const { interesses: atualizados } = await cancelarInteresse(sessao, categoria);
+            setInteresses(atualizados);
+            setErro('');
+        } catch (e) {
+            setErro(e.message);
+        }
+    };
+
     return (
         <Page>
             <Title>Cancelar Interesse</Title>
-            {mockInteresses.length === 0
+            {erro && <Sub style={{ color: '#e53e3e' }}>{erro}</Sub>}
+            {interesses.length === 0
                 ? <Empty>Você não possui interesses registrados.</Empty>
                 : (
                     <List>
-                        {mockInteresses.map(c => (
-                            <Row key={c.id}>
+                        {interesses.map(c => (
+                            <Row key={c}>
                                 <Info>
-                                    <Nome>{c.nome}</Nome>
-                                    <Sub>{c.promos} promoções ativas</Sub>
+                                    <Nome>{c}</Nome>
+                                    <Sub>Interesse registrado</Sub>
                                 </Info>
-                                <BtnRemove>– Remover</BtnRemove>
+                                <BtnRemove onClick={() => handleRemove(c)}>– Remover</BtnRemove>
                             </Row>
                         ))}
                     </List>
