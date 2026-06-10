@@ -47,3 +47,4 @@ if __name__ == "__main__":
     Promocao = Promocao()
     thread_receive = threading.Thread(target=Promocao.receive_recebida)
     thread_receive.start()
+    print(f" [*] Promocao")

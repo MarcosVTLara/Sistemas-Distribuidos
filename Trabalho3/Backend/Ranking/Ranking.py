@@ -73,3 +73,4 @@ if __name__ == "__main__":
     Ranking = Ranking()
     thread_receive = threading.Thread(target=Ranking.receive_voto)
     thread_receive.start()
+    print(f" [*] Ranking")

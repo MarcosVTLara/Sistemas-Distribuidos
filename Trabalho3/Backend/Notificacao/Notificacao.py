@@ -41,7 +41,13 @@ class Notificacao:
                 print(f" [x] Assinatura valida!")
                 publicada = obj["Data"]["promocao"]
                 self.lista_promocoes.append(publicada)
-                self.enviar_categoria(publicada["promocao"], publicada["categoria"])
+                nome = publicada["promocao"]
+                self.enviar_email(
+                    nome, publicada,
+                    f"Sua promoção foi aceita: {nome}",
+                    f"<p>Sua promoção <strong>{nome}</strong> foi aprovada e já está publicada para os consumidores.</p>",
+                )
+                self.enviar_categoria(nome, publicada["categoria"], publicada.get("descricao", ""))
             else:
                 print(f" [x] Assinatura inválida!")
         self.channel_1.basic_consume(
@@ -61,11 +67,13 @@ class Notificacao:
                 nome = obj["Data"]["promocao"]
                 promo = self.buscar_promocao(nome)
                 categoria = promo["categoria"] if promo else None
-                # 1) avisa os clientes legados via routing key de categoria
-                self.enviar_categoria(f"hot deal {nome}", categoria)
-                # 2) envia e-mail para a loja via API externa
-                self.enviar_email(nome, promo)
-                # 3) publica notificacao.hotdeal (consumido pelo Gateway -> SSE)
+
+                self.enviar_email(
+                    nome, promo,
+                    f"Sua promoção virou HOT DEAL: {nome}",
+                    f"<p>Parabéns! A promoção <strong>{nome}</strong> atingiu o limite de votos e agora é um hot deal.</p>",
+                )
+
                 self.enviar_hotdeal(nome, promo, categoria)
             else:
                 print(f" [x] Assinatura inválida!")
@@ -99,43 +107,43 @@ class Notificacao:
                 exchange='Promocoes', routing_key="notificacao.hotdeal", body=body)
         print(f" [x] Sent notificacao.hotdeal {dados}")
 
-    def enviar_email(self, nome, promo):
+    def enviar_email(self, nome, promo, assunto, html):
         destino = (promo.get("email") if promo else "") or EMAIL_PADRAO
         if not destino:
             print(f" [!] Sem e-mail da loja para '{nome}' — pulando envio.")
             return
         if not RESEND_API_KEY:
-            print(f" [!] RESEND_API_KEY não configurada — e-mail simulado para {destino} (hot deal: {nome})")
+            print(f" [!] RESEND_API_KEY não configurada — e-mail simulado para {destino} ({assunto})")
             return
         try:
             r = resend.Emails.send({
                 "from": RESEND_FROM,
                 "to": destino,
-                "subject": f"Sua promoção virou HOT DEAL: {nome}",
-                "html": f"<p>Parabéns! A promoção <strong>{nome}</strong> atingiu o limite de votos e agora é um hot deal.</p>",
+                "subject": assunto,
+                "html": html,
             })
             print(f" [x] E-mail enviado para {destino}: {r}")
         except Exception as e:
             print(f" [!] Falha ao enviar e-mail para {destino}: {e}")
 
-    def enviar_categoria(self, promocao, categoria):
+    def enviar_categoria(self, promocao, categoria, descricao=""):
+        if categoria is None:
+            print(f" [!] Categoria desconhecida para '{promocao}' — não publicado.")
+            return
         dados = {
             "promocao": promocao,
+            "categoria": categoria,
+            "descricao": descricao,
         }
-        body = json.dumps(dados).encode('utf-8')
-        routing_key_map = {
-            "Eletrônicos": "promocao.eletronicos",
-            "Roupas": "promocao.roupas",
-            "Alimentos": "promocao.alimentos",
+        message = {
+            "Signature": util.gerar_assinatura(dados, r".\privadas\Notificacao_private.pem"),
+            "Data": dados
         }
-        routing_key = routing_key_map.get(categoria)
-        if routing_key is None:
-            print(f" [!] Categoria desconhecida: {categoria}")
-            return
+        body = json.dumps(message).encode('utf-8')
         with self.pub_lock:
             self.channel_pub.basic_publish(
-                exchange='Promocoes', routing_key=routing_key, body=body)
-        print(f" [x] Sent {dados} - {categoria} ({routing_key})")
+                exchange='Promocoes', routing_key="promocao.categoria", body=body)
+        print(f" [x] Sent promocao.categoria {dados}")
 
     def close(self):
         self.connection_1.close()
@@ -148,3 +156,4 @@ if __name__ == "__main__":
     thread_receive_publicada.start()
     thread_receive_destaque = threading.Thread(target=notificacao.receive_destaque)
     thread_receive_destaque.start()
+    print(f" [*] Notificacao")
