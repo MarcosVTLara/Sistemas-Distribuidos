@@ -1,6 +1,3 @@
-// Camada de comunicação com o MS Gateway (REST + SSE).
-// O Gateway expõe a API em http://localhost:8000 (ver Backend/Getway/Getway.py).
-
 export const API_BASE = 'http://localhost:8000';
 
 async function asJson(resp) {
@@ -56,8 +53,7 @@ export async function cancelarInteresse(sessao, categoria) {
     return asJson(resp);
 }
 
-// Abre a conexão SSE para a sessão e chama onEvent({ tipo, data }) a cada evento.
-// Retorna a instância de EventSource para que o chamador possa fechá-la.
+
 export function abrirSSE(sessao, onEvent) {
     const source = new EventSource(`${API_BASE}/sse?sessao=${encodeURIComponent(sessao)}`);
     source.addEventListener('promocao', (e) => onEvent({ tipo: 'promocao', data: JSON.parse(e.data) }));
@@ -68,12 +64,6 @@ export function abrirSSE(sessao, onEvent) {
     return source;
 }
 
-// --------------------------------------------------------------------- //
-// Store externo do feed (notificações via SSE).
-// Usar useSyncExternalStore garante que componentes montados (ex.: Feed)
-// re-renderizem imediatamente quando um evento chega, sem depender de
-// re-render do contexto (que pode ser "engolido" pelo React Compiler).
-// --------------------------------------------------------------------- //
 let feedState = [];
 let feedSeq = 0;
 const feedListeners = new Set();

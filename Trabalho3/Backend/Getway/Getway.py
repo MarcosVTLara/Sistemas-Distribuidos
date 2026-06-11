@@ -38,9 +38,6 @@ class Getway:
         # --- Sessões / SSE (delegado ao GerenciadorSSE) ---
         self.sse = GerenciadorSSE()
 
-    # ------------------------------------------------------------------ #
-    # Consumo de eventos vindos do broker
-    # ------------------------------------------------------------------ #
     def receive_eventos(self):
         result = self.channel_sub.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
@@ -63,8 +60,7 @@ class Getway:
                     self._on_destaque(obj)
                 elif method.routing_key == "promocao.categoria":
                     self._on_categoria(obj)
-                elif method.routing_key == "notificacao.hotdeal":
-                    self._on_hotdeal(obj)
+
             except Exception as exc:
                 print(f" [!] Erro ao processar {method.routing_key}; consumer SSE mantido ativo: {exc}")
 
@@ -78,20 +74,6 @@ class Getway:
         promo = obj["Data"]["promocao"]
         registro = self._registrar_promocao(promo)
         print(f" [x] Promoção publicada (catálogo atualizado): {registro}")
-        # A notificação de "nova promoção" para o SSE é emitida pelo MS Notificação
-        # via 'promocao.categoria' (ver _on_categoria), que respeita o filtro de
-        # interesse por categoria. Aqui apenas atualizamos o catálogo local.
-
-    def _on_hotdeal(self, obj):
-        if not util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Notificacao_public.pem"):
-            print(" [x] notificacao.hotdeal com assinatura inválida!")
-            return
-        dados = obj["Data"]
-        nome = dados.get("promocao")
-        categoria = dados.get("categoria")
-        evento = self._montar_evento_promocao(nome, categoria, dados.get("descricao", ""))
-        print(f" [x] HOT DEAL recebido: {evento}")
-        self._broadcast_hotdeal(evento)
 
     def _on_destaque(self, obj):
         if not util.verificar_assinatura(obj["Data"], obj["Signature"], r".\publicas\Ranking_public.pem"):
@@ -137,9 +119,6 @@ class Getway:
 
         self.sse.broadcast("hotdeal", evento)
 
-    # ------------------------------------------------------------------ #
-    # Estado de domínio
-    # ------------------------------------------------------------------ #
     def _registrar_promocao(self, promo):
         """Cria/atualiza o registro local de uma promoção a partir do payload."""
         nome = promo["promocao"]
@@ -166,9 +145,6 @@ class Getway:
                 registro["publicada"] = True
             return dict(registro)
 
-    # ------------------------------------------------------------------ #
-    # Publicação de mensagens no broker
-    # ------------------------------------------------------------------ #
     def enviar_promocao(self, promocao, categoria, descricao="", email="", id=None):
         dados = {
             "id": id,
@@ -200,9 +176,6 @@ class Getway:
             self.channel_pub.basic_publish(exchange='Promocoes', routing_key="promocao.voto", body=body)
         print(f" [x] Sent {message}")
 
-    # ------------------------------------------------------------------ #
-    # Casos de uso chamados pelas rotas REST
-    # ------------------------------------------------------------------ #
     def cadastrar_promocao_api(self, nome, descricao, categoria, email=""):
         with self.estado_lock:
             pid = self.proximo_id
@@ -241,9 +214,6 @@ class Getway:
         self.enviar_voto(voto, nome)
         return resultado
 
-    # ------------------------------------------------------------------ #
-    # CLI interativo (questionary) — modo terminal alternativo ao frontend
-    # ------------------------------------------------------------------ #
     def cadastrar_promocao(self):
         answers = questionary.form(
         promocao = questionary.text("Digite a promoção:"),

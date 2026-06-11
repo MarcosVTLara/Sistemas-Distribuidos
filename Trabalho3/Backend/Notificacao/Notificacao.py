@@ -74,7 +74,6 @@ class Notificacao:
                     f"<p>Parabéns! A promoção <strong>{nome}</strong> atingiu o limite de votos e agora é um hot deal.</p>",
                 )
 
-                self.enviar_hotdeal(nome, promo, categoria)
             else:
                 print(f" [x] Assinatura inválida!")
         self.channel_2.basic_consume(
@@ -90,22 +89,6 @@ class Notificacao:
     def verifica_categoria(self, promocao):
         promo = self.buscar_promocao(promocao)
         return promo["categoria"] if promo else None
-
-    def enviar_hotdeal(self, nome, promo, categoria):
-        dados = {
-            "promocao": nome,
-            "descricao": promo.get("descricao", "") if promo else "",
-            "categoria": categoria,
-        }
-        message = {
-            "Signature": util.gerar_assinatura(dados, r".\privadas\Notificacao_private.pem"),
-            "Data": dados
-        }
-        body = json.dumps(message).encode('utf-8')
-        with self.pub_lock:
-            self.channel_pub.basic_publish(
-                exchange='Promocoes', routing_key="notificacao.hotdeal", body=body)
-        print(f" [x] Sent notificacao.hotdeal {dados}")
 
     def enviar_email(self, nome, promo, assunto, html):
         destino = (promo.get("email") if promo else "") or EMAIL_PADRAO

@@ -15,14 +15,12 @@ def build_app(gateway):
     @app.after_request
     def cors(resp):
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE"
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
         return resp
 
-    @app.route("/promocoes", methods=["OPTIONS", "POST", "GET"])
+    @app.route("/promocoes", methods=["POST", "GET"])
     def promocoes():
-        if request.method == "OPTIONS":
-            return ("", 204)
         if request.method == "GET":
             apenas_publicadas = request.args.get("publicadas") in ("1", "true", "True")
             return jsonify({"promocoes": gateway.listar_promocoes_api(apenas_publicadas)})
@@ -36,10 +34,8 @@ def build_app(gateway):
         registro = gateway.cadastrar_promocao_api(nome, descricao, categoria, email)
         return jsonify({"status": "promocao.recebida", "promocao": registro}), 202
 
-    @app.route("/promocoes/<int:promo_id>/votar", methods=["OPTIONS", "POST"])
+    @app.route("/promocoes/<int:promo_id>/votar", methods=["POST"])
     def votar(promo_id):
-        if request.method == "OPTIONS":
-            return ("", 204)
         body = request.get_json(silent=True) or {}
         voto = body.get("voto")
         if voto not in ("Positivo", "Negativo"):
@@ -49,10 +45,8 @@ def build_app(gateway):
             return jsonify({"erro": "promoção não encontrada"}), 404
         return jsonify({"status": "promocao.voto", "promocao": registro})
 
-    @app.route("/interesses", methods=["OPTIONS", "POST", "GET"])
+    @app.route("/interesses", methods=["POST", "GET"])
     def interesses():
-        if request.method == "OPTIONS":
-            return ("", 204)
         if request.method == "GET":
             sessao = request.args.get("sessao", "")
             return jsonify({"interesses": gateway.sse.interesses_da_sessao(sessao)})
@@ -64,10 +58,8 @@ def build_app(gateway):
         gateway.sse.registrar_interesse(sessao, categoria)
         return jsonify({"status": "interesse registrado", "interesses": gateway.sse.interesses_da_sessao(sessao)})
 
-    @app.route("/interesses/<categoria>", methods=["OPTIONS", "DELETE"])
+    @app.route("/interesses/<categoria>", methods=["DELETE"])
     def cancelar_interesse(categoria):
-        if request.method == "OPTIONS":
-            return ("", 204)
         sessao = request.args.get("sessao", "")
         if not sessao:
             return jsonify({"erro": "sessao é obrigatória"}), 400

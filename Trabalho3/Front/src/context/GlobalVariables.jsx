@@ -19,7 +19,6 @@ function useGlobalVariables(){
     const [interesses, setInteresses] = React.useState([])
     const [lojaEmail, setLojaEmail] = React.useState(() => localStorage.getItem('lojaEmail') || '')
 
-    // Sincroniza os interesses registrados no backend ao iniciar a sessão.
     React.useEffect(() => {
         fetch(`${API_BASE}/interesses?sessao=${encodeURIComponent(sessao)}`)
             .then(r => r.json())
@@ -27,8 +26,6 @@ function useGlobalVariables(){
             .catch(() => {});
     }, [sessao]);
 
-    // Abre a conexão SSE com o Gateway uma única vez por sessão e empurra os
-    // eventos para o store externo do feed (lido pelo componente Feed).
     React.useEffect(() => {
         const source = abrirSSE(sessao, ({ tipo, data }) => {
             const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

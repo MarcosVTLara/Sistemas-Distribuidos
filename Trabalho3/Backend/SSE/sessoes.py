@@ -22,9 +22,6 @@ class GerenciadorSSE:
             self.sessoes[sessao] = {"clientes": set(), "interesses": set()}
         return self.sessoes[sessao]
 
-    # ------------------------------------------------------------------ #
-    # Interesses por categoria
-    # ------------------------------------------------------------------ #
     def registrar_interesse(self, sessao, categoria):
         with self.sessoes_lock:
             self._get_sessao_locked(sessao)["interesses"].add(categoria)
@@ -37,9 +34,6 @@ class GerenciadorSSE:
         with self.sessoes_lock:
             return sorted(self._get_sessao_locked(sessao)["interesses"])
 
-    # ------------------------------------------------------------------ #
-    # Clientes SSE conectados
-    # ------------------------------------------------------------------ #
     def _adicionar_cliente_sse(self, sessao):
         fila = queue.Queue()
         with self.sessoes_lock:
@@ -60,7 +54,6 @@ class GerenciadorSSE:
                 for s in self.sessoes.values()
             ]
         for s in sessoes:
-            # Filtra por categorias de interesse registradas na sessão
             if categoria is not None and categoria not in s["interesses"]:
                 continue
             for fila in s["clientes"]:
