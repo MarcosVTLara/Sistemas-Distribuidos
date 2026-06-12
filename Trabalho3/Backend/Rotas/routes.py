@@ -29,9 +29,14 @@ def build_app(gateway):
         descricao = (body.get("descricao") or "").strip()
         categoria = body.get("categoria")
         email = (body.get("email") or "").strip()
+        assinatura = body.get("assinatura")
         if not nome or not descricao or categoria not in CATEGORIAS:
             return jsonify({"erro": "nome, descricao e categoria válida são obrigatórios"}), 400
-        registro = gateway.cadastrar_promocao_api(nome, descricao, categoria, email)
+        if not assinatura:
+            return jsonify({"erro": "assinatura da loja é obrigatória"}), 400
+        registro = gateway.cadastrar_promocao_api(nome, descricao, categoria, assinatura, email)
+        if registro is None:
+            return jsonify({"erro": "assinatura da loja inválida"}), 401
         return jsonify({"status": "promocao.recebida", "promocao": registro}), 202
 
     @app.route("/promocoes/<int:promo_id>/votar", methods=["POST"])

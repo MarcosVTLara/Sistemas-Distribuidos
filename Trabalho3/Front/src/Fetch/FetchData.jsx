@@ -19,10 +19,27 @@ export async function listarPromocoesPublicadas() {
 }
 
 export async function cadastrarPromocao({ nome, descricao, categoria, email }) {
+    const dados = {
+        nome: (nome || '').trim(),
+        descricao: (descricao || '').trim(),
+        categoria,
+        email: (email || '').trim(),
+    };
+
+    const assinResp = await fetch('/api/assinar-promocao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados),
+    });
+    const { assinatura, erro } = await assinResp.json().catch(() => ({}));
+    if (!assinResp.ok || !assinatura) {
+        throw new Error(erro || 'Falha ao assinar a promoção');
+    }
+
     const resp = await fetch(`${API_BASE}/promocoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, descricao, categoria, email }),
+        body: JSON.stringify({ ...dados, assinatura }),
     });
     return asJson(resp);
 }

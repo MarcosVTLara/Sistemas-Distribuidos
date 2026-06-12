@@ -160,7 +160,7 @@ class Getway:
         body = json.dumps(message).encode('utf-8')
         with self.pub_lock:
             self.channel_pub.basic_publish(exchange='Promocoes', routing_key="promocao.recebida", body=body)
-        print(f" [x] Sent {message}")
+        print(f" [x] Sent promocao.recebida {message}")
 
     def enviar_voto(self, voto, promocao):
         dados = {
@@ -176,7 +176,21 @@ class Getway:
             self.channel_pub.basic_publish(exchange='Promocoes', routing_key="promocao.voto", body=body)
         print(f" [x] Sent {message}")
 
-    def cadastrar_promocao_api(self, nome, descricao, categoria, email=""):
+    def cadastrar_promocao_api(self, nome, descricao, categoria, assinatura, email=""):
+        dados_loja = {
+            "promocao": nome,
+            "descricao": descricao,
+            "categoria": categoria,
+            "email": email,
+        }
+        recebido = {"Signature": assinatura, "Data": dados_loja}
+        print(f" [x] {recebido}")
+
+        if not assinatura or not util.verificar_assinatura(dados_loja, assinatura, r".\publicas\loja_public.pem"):
+            print(" [x] Assinatura inválida!")
+            return None
+        print(" [x] Assinatura valida!")
+
         with self.estado_lock:
             pid = self.proximo_id
             self.proximo_id += 1
